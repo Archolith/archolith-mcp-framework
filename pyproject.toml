@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cth-mcp-framework"
+version = "0.1.0"
+description = "Shared MCP server framework for cth.* workspace — FastMCP 3.x Search Transform + Middleware conventions."
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=3.2.4,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
