@@ -123,6 +123,28 @@ class TestCreateGatewayServer:
         # Defaults should NOT be present when custom is provided
         assert "ErrorHandlingMiddleware" not in mw_types
 
+    @pytest.mark.asyncio
+    async def test_lifespan_passthrough(self):
+        """Verify lifespan context manager is forwarded to FastMCP."""
+        from contextlib import asynccontextmanager
+
+        startup_called = False
+
+        @asynccontextmanager
+        async def my_lifespan(app):
+            nonlocal startup_called
+            startup_called = True
+            yield {"initialized": True}
+
+        mcp = create_gateway_server(
+            "test-server",
+            instructions="Test.",
+            lifespan=my_lifespan,
+        )
+
+        # The lifespan should be stored on the MCP server
+        assert mcp._lifespan is my_lifespan
+
 
 # ---------------------------------------------------------------------------
 # Middleware
