@@ -5,6 +5,9 @@ Provides:
 - WorkspaceSearchTransform: BM25SearchTransform with workspace-default settings
 - ErrorHandlingMiddleware, TimingMiddleware, StructuredLoggingMiddleware
 - run_server(): Start a FastMCP server on stdio transport
+- ToolResponse: Standard response dataclass for tool returns
+- BaseGatewayServer: Abstract base class for MCP gateway servers
+- PathValidationMixin, ChunkedIOMixin, AuditLogMixin: Pick-and-mix patterns
 """
 
 from cth_mcp_framework.server import create_gateway_server
@@ -15,12 +18,42 @@ from cth_mcp_framework.middleware import (
     StructuredLoggingMiddleware,
 )
 from cth_mcp_framework.runner import run_server
+from cth_mcp_framework.response import (
+    ToolResponse,
+    ERR_NOT_FOUND,
+    ERR_INVALID_INPUT,
+    ERR_PERMISSION,
+    ERR_TOO_LARGE,
+    ERR_TIMEOUT,
+    ERR_INTERNAL,
+)
+from cth_mcp_framework.base import BaseGatewayServer
+from cth_mcp_framework.mixins import (
+    PathValidationMixin,
+    ChunkedIOMixin,
+    AuditLogMixin,
+)
 
 __all__ = [
+    # Factory + runner
     "create_gateway_server",
+    "run_server",
+    # Transforms + middleware
     "WorkspaceSearchTransform",
     "ErrorHandlingMiddleware",
     "TimingMiddleware",
     "StructuredLoggingMiddleware",
-    "run_server",
+    # OOP layer
+    "ToolResponse",
+    "ERR_NOT_FOUND",
+    "ERR_INVALID_INPUT",
+    "ERR_PERMISSION",
+    "ERR_TOO_LARGE",
+    "ERR_TIMEOUT",
+    "ERR_INTERNAL",
+    "BaseGatewayServer",
+    # Mixins
+    "PathValidationMixin",
+    "ChunkedIOMixin",
+    "AuditLogMixin",
 ]
