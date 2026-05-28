@@ -7,7 +7,7 @@ Provides:
 - run_server(): Start a FastMCP server on stdio transport
 - ToolResponse: Standard response dataclass for tool returns
 - BaseGatewayServer: Abstract base class for MCP gateway servers
-- PathValidationMixin, ChunkedIOMixin, AuditLogMixin, GitMixin: Pick-and-mix patterns
+- PathValidationMixin, ChunkedIOMixin, AuditLogMixin, GitMixin, CompactMixin: Pick-and-mix patterns
 """
 
 from cth_mcp_framework.server import create_gateway_server
@@ -33,6 +33,7 @@ from cth_mcp_framework.mixins import (
     ChunkedIOMixin,
     AuditLogMixin,
     GitMixin,
+    CompactMixin,
 )
 
 __all__ = [
@@ -58,4 +59,5 @@ __all__ = [
     "ChunkedIOMixin",
     "AuditLogMixin",
     "GitMixin",
+    "CompactMixin",
 ]
