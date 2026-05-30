@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -12,6 +15,7 @@ from cth_mcp_framework import (
     ErrorHandlingMiddleware,
     TimingMiddleware,
     StructuredLoggingMiddleware,
+    GitMixin,
 )
 
 
@@ -195,3 +199,67 @@ class TestErrorHandlingMiddleware:
         assert len(result.content) == 1
         assert "Internal error" in result.content[0].text
         assert "RuntimeError" in result.content[0].text
+
+
+class _GitMixinHarness(GitMixin):
+    pass
+
+
+class TestGitMixin:
+    def test_git_auto_commit_scopes_commit_to_requested_paths(self, monkeypatch: pytest.MonkeyPatch):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True, text=True)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            baseline = repo_root / "baseline.txt"
+            baseline.write_text("baseline\n", encoding="utf-8")
+            subprocess.run(["git", "add", "--", "baseline.txt"], cwd=repo_root, check=True)
+            subprocess.run(["git", "commit", "-m", "init"], cwd=repo_root, check=True, capture_output=True, text=True)
+
+            unrelated = repo_root / "unrelated.txt"
+            unrelated.write_text("unrelated\n", encoding="utf-8")
+            subprocess.run(["git", "add", "--", "unrelated.txt"], cwd=repo_root, check=True)
+
+            artifact = repo_root / "artifact.txt"
+            artifact.write_text("artifact\n", encoding="utf-8")
+
+            monkeypatch.setenv("GIT_AUTO_COMMIT", "1")
+            monkeypatch.setenv("GIT_REPO_ROOT", str(repo_root))
+
+            mixin = _GitMixinHarness()
+            result = mixin.git_auto_commit(artifact, "write", "plans/demo.md")
+
+            assert result["committed"] is True
+
+            head_files = subprocess.run(
+                ["git", "show", "--name-only", "--pretty=format:", "HEAD"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.splitlines()
+            committed_files = {line.strip() for line in head_files if line.strip()}
+            assert committed_files == {"artifact.txt"}
+
+            status_output = subprocess.run(
+                ["git", "status", "--short"],
+                cwd=repo_root,
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout
+            assert "A  unrelated.txt" in status_output

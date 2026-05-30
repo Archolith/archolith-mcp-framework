@@ -1,7 +1,7 @@
 """GitMixin — automatic git add+commit for cth.* MCP servers.
 
 Provides:
-- git_auto_commit(): stages one or more files and commits them in the configured repo
+- git_auto_commit(): stages one or more files and commits only those paths
 - Reads GIT_AUTO_COMMIT env var (set to "1" to enable); no-op if unset
 - Reads GIT_REPO_ROOT env var for the repo path; defaults to cwd
 
@@ -99,19 +99,35 @@ class GitMixin:
         else:
             paths = [Path(p) for p in file_paths]
 
-        repo_root = self._get_git_repo_root()
+        repo_root = Path(self._get_git_repo_root()).resolve()
+        relative_paths: list[str] = []
+        for path in paths:
+            resolved_path = path.resolve()
+            try:
+                relative_paths.append(str(resolved_path.relative_to(repo_root)))
+            except ValueError:
+                logger.warning(
+                    "git auto-commit path %s is outside repo root %s",
+                    resolved_path,
+                    repo_root,
+                )
+                return {
+                    "committed": False,
+                    "commit_hash": None,
+                    "error": "path outside repo root",
+                }
 
         action = _COMMIT_ACTIONS.get(operation, operation)
         message = "chore(artifacts): %s %s" % (action, label)
 
         try:
             # Stage all files (even deleted files — git add records the removal)
-            add_args = ["git", "add"] + [str(p) for p in paths]
+            add_args = ["git", "add", "--"] + relative_paths
             add_result = subprocess.run(
                 add_args,
                 capture_output=True,
                 text=True,
-                cwd=repo_root,
+                cwd=str(repo_root),
                 timeout=10,
             )
             if add_result.returncode != 0:
@@ -126,10 +142,10 @@ class GitMixin:
 
             # Commit
             commit_result = subprocess.run(
-                ["git", "commit", "-m", message],
+                ["git", "commit", "--only", "-m", message, "--", *relative_paths],
                 capture_output=True,
                 text=True,
-                cwd=repo_root,
+                cwd=str(repo_root),
                 timeout=10,
             )
             if commit_result.returncode != 0:
@@ -156,7 +172,7 @@ class GitMixin:
                 ["git", "rev-parse", "--short", "HEAD"],
                 capture_output=True,
                 text=True,
-                cwd=repo_root,
+                cwd=str(repo_root),
                 timeout=5,
             )
             commit_hash = hash_result.stdout.strip() if hash_result.returncode == 0 else None
