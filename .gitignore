@@ -16,6 +16,7 @@ build/
 # Tests
 .pytest_cache/
 pytest_output.txt
+logs/
 
 # IDEs
 .vscode/
