@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, Sequence
@@ -16,6 +17,50 @@ from fastmcp.tools.base import ToolResult
 from mcp import types as mt
 
 logger = logging.getLogger("cth.mcp.framework")
+
+
+class TimeoutMiddleware(Middleware):
+    """Cancel tool calls that exceed a hard deadline, keeping the MCP connection alive.
+
+    When a sync tool runs in anyio's threadpool and the underlying subprocess
+    (e.g. SSH via PowerShell) hangs, the asyncio future can be cancelled via
+    ``asyncio.wait_for`` even if the worker thread is still blocked — anyio
+    discards the thread result and the event loop resumes immediately. This
+    prevents the client from timing out the entire MCP connection (Claude Code's
+    default is 180s) due to a single stuck tool call.
+
+    Place this INSIDE ``ErrorHandlingMiddleware`` in the middleware stack so that
+    any unexpected errors during timeout handling are still caught cleanly.
+    """
+
+    def __init__(self, timeout_s: float = 90.0) -> None:
+        self.timeout_s = timeout_s
+
+    async def on_call_tool(
+        self,
+        context: MiddlewareContext[mt.CallToolRequestParams],
+        call_next: Any,
+    ) -> ToolResult:
+        try:
+            return await asyncio.wait_for(call_next(context), timeout=self.timeout_s)
+        except (asyncio.TimeoutError, TimeoutError):
+            tool_name = context.message.name
+            logger.error(
+                "Tool %s timed out after %.0fs — returning error to preserve MCP connection",
+                tool_name,
+                self.timeout_s,
+            )
+            return ToolResult(
+                content=[
+                    mt.TextContent(
+                        type="text",
+                        text=(
+                            f"Error: Tool '{tool_name}' timed out after {self.timeout_s:.0f}s. "
+                            "The underlying operation may still be completing in the background."
+                        ),
+                    )
+                ]
+            )
 
 
 class ErrorHandlingMiddleware(Middleware):

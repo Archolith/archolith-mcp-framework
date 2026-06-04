@@ -3,7 +3,7 @@
 Provides:
 - create_gateway_server(): Factory for FastMCP servers with Search Transform + Middleware
 - WorkspaceSearchTransform: BM25SearchTransform with workspace-default settings
-- ErrorHandlingMiddleware, TimingMiddleware, StructuredLoggingMiddleware
+- ErrorHandlingMiddleware, TimingMiddleware, StructuredLoggingMiddleware, TimeoutMiddleware
 - run_server(): Start a FastMCP server on stdio transport
 - ToolResponse: Standard response dataclass for tool returns
 - BaseGatewayServer: Abstract base class for MCP gateway servers
@@ -16,6 +16,7 @@ from cth_mcp_framework.middleware import (
     ErrorHandlingMiddleware,
     TimingMiddleware,
     StructuredLoggingMiddleware,
+    TimeoutMiddleware,
 )
 from cth_mcp_framework.runner import run_server
 from cth_mcp_framework.response import (
@@ -45,6 +46,7 @@ __all__ = [
     "ErrorHandlingMiddleware",
     "TimingMiddleware",
     "StructuredLoggingMiddleware",
+    "TimeoutMiddleware",
     # OOP layer
     "ToolResponse",
     "ERR_NOT_FOUND",
