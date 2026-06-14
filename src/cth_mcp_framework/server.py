@@ -26,6 +26,7 @@ def create_gateway_server(
     always_visible: list[str] | None = None,
     middlewares: Sequence[Middleware] | None = None,
     max_results: int = 10,
+    schema_abbreviated: bool = False,
 ) -> FastMCP:
     """Create a FastMCP server with workspace-standard Search Transform and middleware.
 
@@ -34,10 +35,13 @@ def create_gateway_server(
         instructions: Human-readable description shown to LLM clients.
         lifespan: Optional async context manager for server lifespan (e.g. backend init).
         always_visible: Tool names that stay in list_tools output alongside
-            search_tools + call_tool. Pin the most-used discovery tools here.
+        search_tools + call_tool. Pin the most-used discovery tools here.
         middlewares: Custom middleware sequence. Defaults to
-            [ErrorHandlingMiddleware(), TimingMiddleware()].
+        [ErrorHandlingMiddleware(), TimingMiddleware()].
         max_results: Maximum tools returned per search query. Default 10.
+        schema_abbreviated: After the first list_tools call, abbreviate
+        pinned (always_visible) tool schemas to name + 1-line description +
+        required params only. Saves ~60% per-turn schema tokens.
 
     Returns:
         A configured FastMCP instance ready for @mcp.tool() registration.
@@ -45,6 +49,7 @@ def create_gateway_server(
     transform = WorkspaceSearchTransform(
         max_results=max_results,
         always_visible=always_visible,
+        abbreviate_visible=schema_abbreviated,
     )
 
     if middlewares is None:

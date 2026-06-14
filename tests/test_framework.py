@@ -49,6 +49,17 @@ class TestWorkspaceSearchTransform:
         # via the full server test below
         assert callable(compact_search_serializer)
 
+    def test_abbreviate_visible_defaults_off(self):
+        t = WorkspaceSearchTransform()
+        assert t._abbreviate_visible is False
+        assert t._warmup_calls == 1
+        assert t._call_count == 0
+
+    def test_abbreviate_visible_enabled(self):
+        t = WorkspaceSearchTransform(abbreviate_visible=True, warmup_calls=2)
+        assert t._abbreviate_visible is True
+        assert t._warmup_calls == 2
+
 
 # ---------------------------------------------------------------------------
 # create_gateway_server
@@ -148,6 +159,46 @@ class TestCreateGatewayServer:
 
         # The lifespan should be stored on the MCP server
         assert mcp._lifespan is my_lifespan
+
+    @pytest.mark.asyncio
+    async def test_schema_abbreviated_passed_to_transform(self):
+        mcp = create_gateway_server(
+            "test-server",
+            instructions="Test.",
+            always_visible=["list_home_devices"],
+            schema_abbreviated=True,
+        )
+        transform = mcp._transforms[0]
+        assert isinstance(transform, WorkspaceSearchTransform)
+        assert transform._abbreviate_visible is True
+
+    @pytest.mark.asyncio
+    async def test_abbreviate_visible_shortens_pinned_schemas(self):
+        mcp = create_gateway_server(
+            "test-server",
+            instructions="Test.",
+            always_visible=["set_light"],
+            schema_abbreviated=True,
+        )
+
+        @mcp.tool()
+        async def set_light(light_id: str, on: bool) -> str:
+            """Set a Philips Hue light on or off. Requires the light ID."""
+            return f"Light {light_id} set."
+
+        transform = mcp._transforms[0]
+        transform._call_count = 0
+        tools_warmup = await mcp.list_tools()
+        pinned_warmup = [t for t in tools_warmup if t.name == "set_light"][0]
+        warmup_schema = pinned_warmup.to_mcp_tool().inputSchema
+        assert "light_id" in warmup_schema.get("properties", {})
+
+        # Second call = abbreviated
+        tools_abbrev = await mcp.list_tools()
+        pinned_abbrev = [t for t in tools_abbrev if t.name == "set_light"][0]
+        abbrev_schema = pinned_abbrev.to_mcp_tool().inputSchema
+        assert abbrev_schema.get("properties", {}) == {}
+        assert len(pinned_abbrev.description) < len(pinned_warmup.description)
 
 
 # ---------------------------------------------------------------------------

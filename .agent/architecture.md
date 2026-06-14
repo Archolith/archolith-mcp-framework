@@ -31,6 +31,8 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 1. A consumer repo creates a server with `create_gateway_server()` or subclasses `BaseGatewayServer`.
 2. The framework installs `WorkspaceSearchTransform`, which collapses the full tool catalog into a discovery
    surface centered on `search_tools` and `call_tool`.
+   - `schema_abbreviated=True` abbreviates pinned `always_visible` tool schemas after the initial warmup
+     `list_tools` call, keeping the full schema visible once while reducing repeated prompt tokens.
 3. Middleware runs around every tool invocation.
    - `ErrorHandlingMiddleware` converts uncaught exceptions into structured tool-safe text responses.
    - `TimingMiddleware` records call duration.

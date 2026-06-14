@@ -35,6 +35,7 @@ class BaseGatewayServer:
     name: str = ""
     instructions: str = ""
     always_visible: list[str] = []
+    schema_abbreviated: bool = False
 
     def __init__(
         self,
@@ -50,6 +51,7 @@ class BaseGatewayServer:
             lifespan=lifespan,
             middlewares=middlewares,
             max_results=max_results,
+            schema_abbreviated=self.schema_abbreviated,
         )
         self._register_tools()
 
