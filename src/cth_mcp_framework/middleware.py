@@ -12,6 +12,7 @@ import logging
 import time
 from typing import Any, Sequence
 
+from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools.base import ToolResult
 from mcp import types as mt
@@ -77,6 +78,12 @@ class ErrorHandlingMiddleware(Middleware):
     ) -> ToolResult:
         try:
             return await call_next(context)
+        except ToolError:
+            # FastMCP 3.x handles ToolError at the protocol level (sets isError=true in
+            # the MCP response). Catching it here and returning a ToolResult causes a
+            # double-respond: FastMCP also tries to send its own error response, which
+            # triggers "Request already responded to" and crashes the stdio server.
+            raise
         except ValueError as e:
             logger.warning("Tool %s validation error: %s", context.message.name, e)
             return ToolResult(content=[mt.TextContent(type="text", text=f"Error: {e}")])
