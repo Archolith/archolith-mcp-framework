@@ -29,6 +29,11 @@ from cth_mcp_framework.response import (
     ERR_INTERNAL,
 )
 from cth_mcp_framework.base import BaseGatewayServer
+from cth_mcp_framework.duration_stats import (
+    DurationEstimate,
+    record_duration,
+    estimate_duration,
+)
 from cth_mcp_framework.mixins import (
     PathValidationMixin,
     ChunkedIOMixin,
@@ -56,6 +61,10 @@ __all__ = [
     "ERR_TIMEOUT",
     "ERR_INTERNAL",
     "BaseGatewayServer",
+    # Duration stats / ETA
+    "DurationEstimate",
+    "record_duration",
+    "estimate_duration",
     # Mixins
     "PathValidationMixin",
     "ChunkedIOMixin",
