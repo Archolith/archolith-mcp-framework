@@ -10,6 +10,7 @@ from cth_mcp_framework.mixins.chunked_io import ChunkedIOMixin
 from cth_mcp_framework.mixins.audit import AuditLogMixin
 from cth_mcp_framework.mixins.git import GitMixin
 from cth_mcp_framework.mixins.compact import CompactMixin
+from cth_mcp_framework.mixins.job_control import JobControlMixin
 
 __all__ = [
     "PathValidationMixin",
@@ -17,4 +18,5 @@ __all__ = [
     "AuditLogMixin",
     "GitMixin",
     "CompactMixin",
+    "JobControlMixin",
 ]

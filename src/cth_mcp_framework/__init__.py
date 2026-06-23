@@ -46,6 +46,7 @@ from cth_mcp_framework.mixins import (
     AuditLogMixin,
     GitMixin,
     CompactMixin,
+    JobControlMixin,
 )
 
 __all__ = [
@@ -82,4 +83,5 @@ __all__ = [
     "AuditLogMixin",
     "GitMixin",
     "CompactMixin",
+    "JobControlMixin",
 ]

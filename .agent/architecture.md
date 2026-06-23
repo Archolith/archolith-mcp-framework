@@ -28,7 +28,8 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 | `src/cth_mcp_framework/runner.py` | Stdio server bootstrap helper |
 | `src/cth_mcp_framework/duration_stats.py` | Records per `tool+bucket` job durations (rolling window, JSON-persisted) and returns p50/p90/samples estimates with cold-start defaults |
 | `src/cth_mcp_framework/jobs.py` | Shared background-job registry (`start_job`/`job_status`/`job_eta`/`cancel_job`) with ETA hints, a `last_progress_ts` heartbeat (stuck vs slow), and an optional timeout-kill watchdog |
-| `src/cth_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode |
+| `src/cth_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode, **job control** |
+| `src/cth_mcp_framework/mixins/job_control.py` | `JobControlMixin` — opt-in polling support for OOP servers: auto-registers `<prefix>job_status`/`<prefix>job_cancel`, plus `start_job`/`started_message` helpers that apply per-server ETA defaults |
 
 ## Async Jobs + ETA
 
@@ -42,6 +43,24 @@ eta_bucket=..., eta_default=..., timeout_s=...)` and return a job ID immediately
   line, so the client waits the p50 once and checks once instead of polling.
 - Consumers: `yawn.vps` (deploy/canary) and the agentsmith gradle server. `yawn.vps/vps/jobs.py` is a thin
   re-export of `jobs.py` for backward compatibility.
+
+### Polling vs non-polling servers (OOP)
+
+Class-based servers opt into polling by composing `JobControlMixin` before `BaseGatewayServer`:
+
+```python
+class MyServer(JobControlMixin, BaseGatewayServer):
+    name = "myserver"
+    job_tool_prefix = "my_"
+    eta_defaults = {"build": 240}
+```
+
+This auto-registers `my_job_status` / `my_job_cancel` and gives `self.start_job(..., eta_bucket="build")`
++ `self.started_message(job_id)` (the wait-once-then-check message with ETA). A server that does not run
+long tasks simply omits the mixin and carries no job tools or registry. The mixin delegates to the
+module-level `jobs.py` registry (not an instance-scoped one): each MCP server is its own stdio process, so
+the process-global registry is effectively per-server. Existing functional servers (`yawn.vps`, gradle) keep
+using `create_gateway_server` directly; the mixin is the path for new OOP servers.
 
 ## Request Path
 
