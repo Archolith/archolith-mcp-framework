@@ -34,6 +34,12 @@ from cth_mcp_framework.duration_stats import (
     record_duration,
     estimate_duration,
 )
+from cth_mcp_framework.jobs import (
+    start_job,
+    job_status,
+    job_eta,
+    cancel_job,
+)
 from cth_mcp_framework.mixins import (
     PathValidationMixin,
     ChunkedIOMixin,
@@ -65,6 +71,11 @@ __all__ = [
     "DurationEstimate",
     "record_duration",
     "estimate_duration",
+    # Async job registry
+    "start_job",
+    "job_status",
+    "job_eta",
+    "cancel_job",
     # Mixins
     "PathValidationMixin",
     "ChunkedIOMixin",
