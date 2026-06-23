@@ -13,6 +13,8 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 - expose a base class for OOP-style gateway servers
 - provide reusable mixins for path validation, chunked I/O, git helpers, auditing, and compact-mode behavior
 - keep the public response/error shape consistent across servers that adopt the framework
+- provide a shared async-job registry and a duration-stats ETA engine so long-running tools (deploy, build)
+  can advise a single wait-then-check instead of tight, token-expensive polling
 
 ## Module Layout
 
@@ -24,7 +26,22 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 | `src/cth_mcp_framework/base.py` | `BaseGatewayServer` convenience class on top of the factory |
 | `src/cth_mcp_framework/response.py` | `ToolResponse` plus shared error-code constants |
 | `src/cth_mcp_framework/runner.py` | Stdio server bootstrap helper |
+| `src/cth_mcp_framework/duration_stats.py` | Records per `tool+bucket` job durations (rolling window, JSON-persisted) and returns p50/p90/samples estimates with cold-start defaults |
+| `src/cth_mcp_framework/jobs.py` | Shared background-job registry (`start_job`/`job_status`/`job_eta`/`cancel_job`) with ETA hints, a `last_progress_ts` heartbeat (stuck vs slow), and an optional timeout-kill watchdog |
 | `src/cth_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode |
+
+## Async Jobs + ETA
+
+Long-running tools start a background job via `start_job(label, fn, *args, streaming=..., eta_tool=...,
+eta_bucket=..., eta_default=..., timeout_s=...)` and return a job ID immediately, then poll `job_status`.
+
+- **Bucketing**: durations are keyed by `tool + bucket`, where bucket is a low-cardinality runtime
+  discriminator (deploy target, gradle task) — not the raw command — so percentiles are meaningful.
+- **Recording**: only successful runs are recorded (failures/timeouts skew the median).
+- **Self-describing**: `job_status` for a running ETA-tracked job reports `ETA: p50/p90` and a stuck-vs-slow
+  line, so the client waits the p50 once and checks once instead of polling.
+- Consumers: `yawn.vps` (deploy/canary) and the agentsmith gradle server. `yawn.vps/vps/jobs.py` is a thin
+  re-export of `jobs.py` for backward compatibility.
 
 ## Request Path
 
@@ -52,3 +69,5 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 |-----------|----------------|
 | `tests/test_framework.py` | Transform wiring, middleware defaults, custom middleware behavior, lifespan passthrough, git mixin behavior |
 | `tests/test_compact_mixin.py` | Compact-mode behavior and mixin-level edge cases |
+| `tests/test_duration_stats.py` | Percentile math, cold-start defaults, rolling window, JSON persistence, corrupt-file handling |
+| `tests/test_jobs.py` | Job lifecycle, ETA recording (success-only), heartbeat/ETA in status, timeout watchdog, legacy-dict compatibility |
