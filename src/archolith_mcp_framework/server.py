@@ -14,8 +14,8 @@ from typing import Any
 from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 
-from cth_mcp_framework.middleware import ErrorHandlingMiddleware, TimingMiddleware
-from cth_mcp_framework.transforms import WorkspaceSearchTransform
+from archolith_mcp_framework.middleware import ErrorHandlingMiddleware, TimingMiddleware
+from archolith_mcp_framework.transforms import WorkspaceSearchTransform
 
 
 def create_gateway_server(
@@ -31,7 +31,7 @@ def create_gateway_server(
     """Create a FastMCP server with workspace-standard Search Transform and middleware.
 
     Args:
-        name: Server name (e.g. "cth.home", "yawn.vps").
+        name: Server name (e.g. "example.gateway", "yawn.vps").
         instructions: Human-readable description shown to LLM clients.
         lifespan: Optional async context manager for server lifespan (e.g. backend init).
         always_visible: Tool names that stay in list_tools output alongside

@@ -1,6 +1,6 @@
-# cth.mcp.framework — Agent Docs
+# archolith-mcp-framework — Agent Docs
 
-Read this directory before changing `cth.mcp.framework`.
+Read this directory before changing `archolith-mcp-framework`.
 
 ## Files
 
@@ -14,4 +14,4 @@ Read this directory before changing `cth.mcp.framework`.
 - Document any public contract change to `create_gateway_server()`, `BaseGatewayServer`, `ToolResponse`, or the
   synthetic tool-search surface.
 - Run the focused framework tests when behavior changes touch the library surface:
-  `tests/test_framework.py` and `tests/test_compact_mixin.py`.
+  `tests/test_framework.py`, `tests/test_compact_mixin.py`, and `tests/test_public_package.py`.

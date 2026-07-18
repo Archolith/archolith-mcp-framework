@@ -52,10 +52,8 @@ def _default_stats_path() -> Path:
     if root:
         base = Path(root)
     else:
-        # framework lives at projects/ctharvey/cth.mcp.framework/src/... — walk up
-        # to the workspace root. Fall back to cwd if the layout is unexpected.
-        here = Path(__file__).resolve()
-        base = here.parents[5] if len(here.parents) >= 6 else Path.cwd()
+        # Default to the process working directory when a workspace root is not configured.
+        base = Path.cwd()
     return base / "logs" / "mcp-duration-stats.json"
 
 

@@ -1,7 +1,7 @@
-"""WorkspaceSearchTransform — BM25SearchTransform with cth.* workspace defaults.
+"""WorkspaceSearchTransform — BM25SearchTransform with workspace defaults.
 
 Differences from stock BM25SearchTransform:
-- max_results=10 (most cth.* servers have 3-25 actions)
+- max_results=10 (most MCP servers have 3-25 actions)
 - Custom search_result_serializer that renders compact tool schemas,
 matching the output format of the old _build_action_schema() helpers
 - Optional schema abbreviation: after the first list_tools call, pinned

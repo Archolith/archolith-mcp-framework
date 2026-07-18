@@ -1,8 +1,8 @@
-# Architecture: cth.mcp.framework
+# Architecture: archolith-mcp-framework
 
 ## Overview
 
-`cth.mcp.framework` is a small shared library for workspace MCP servers built on FastMCP. It standardizes the
+`archolith-mcp-framework` is a small public library for MCP servers built on FastMCP. It standardizes the
 server bootstrap path, synthetic tool-discovery surface, middleware defaults, response helpers, and a set of
 mixins that other MCP repos can reuse instead of re-implementing the same plumbing.
 
@@ -20,16 +20,16 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 
 | Module | Role |
 |--------|------|
-| `src/cth_mcp_framework/server.py` | `create_gateway_server()` factory that wires FastMCP, transforms, and middleware |
-| `src/cth_mcp_framework/transforms.py` | `WorkspaceSearchTransform` and related search/call serialization behavior |
-| `src/cth_mcp_framework/middleware.py` | Shared middleware for error handling, timing, and structured logging |
-| `src/cth_mcp_framework/base.py` | `BaseGatewayServer` convenience class on top of the factory |
-| `src/cth_mcp_framework/response.py` | `ToolResponse` plus shared error-code constants |
-| `src/cth_mcp_framework/runner.py` | Stdio server bootstrap helper |
-| `src/cth_mcp_framework/duration_stats.py` | Records per `tool+bucket` job durations (rolling window, JSON-persisted) and returns p50/p90/samples estimates with cold-start defaults |
-| `src/cth_mcp_framework/jobs.py` | Shared background-job registry (`start_job`/`job_status`/`job_eta`/`cancel_job`) with ETA hints, a `last_progress_ts` heartbeat (stuck vs slow), and an optional timeout-kill watchdog |
-| `src/cth_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode, **job control** |
-| `src/cth_mcp_framework/mixins/job_control.py` | `JobControlMixin` — opt-in polling support for OOP servers: auto-registers `<prefix>job_status`/`<prefix>job_cancel`, plus `start_job`/`started_message` helpers that apply per-server ETA defaults |
+| `src/archolith_mcp_framework/server.py` | `create_gateway_server()` factory that wires FastMCP, transforms, and middleware |
+| `src/archolith_mcp_framework/transforms.py` | `WorkspaceSearchTransform` and related search/call serialization behavior |
+| `src/archolith_mcp_framework/middleware.py` | Shared middleware for error handling, timing, and structured logging |
+| `src/archolith_mcp_framework/base.py` | `BaseGatewayServer` convenience class on top of the factory |
+| `src/archolith_mcp_framework/response.py` | `ToolResponse` plus shared error-code constants |
+| `src/archolith_mcp_framework/runner.py` | Stdio server bootstrap helper |
+| `src/archolith_mcp_framework/duration_stats.py` | Records per `tool+bucket` job durations (rolling window, JSON-persisted) and returns p50/p90/samples estimates with cold-start defaults |
+| `src/archolith_mcp_framework/jobs.py` | Shared background-job registry (`start_job`/`job_status`/`job_eta`/`cancel_job`) with ETA hints, a `last_progress_ts` heartbeat (stuck vs slow), and an optional timeout-kill watchdog |
+| `src/archolith_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode, **job control** |
+| `src/archolith_mcp_framework/mixins/job_control.py` | `JobControlMixin` — opt-in polling support for OOP servers: auto-registers `<prefix>job_status`/`<prefix>job_cancel`, plus `start_job`/`started_message` helpers that apply per-server ETA defaults |
 
 ## Async Jobs + ETA
 
@@ -81,6 +81,7 @@ using `create_gateway_server` directly; the mixin is the path for new OOP server
 - Avoid embedding project-specific business logic here.
 - Public exports in `__init__.py` are the compatibility surface other repos depend on; update docs when that
   surface changes.
+- `archolith_mcp_framework` is the primary import. `cth_mcp_framework` remains a forwarding compatibility package.
 
 ## Test Surface
 

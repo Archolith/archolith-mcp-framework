@@ -1,4 +1,4 @@
-"""Shared middleware for cth.* MCP servers.
+"""Shared middleware for MCP servers.
 
 - ErrorHandlingMiddleware: catches exceptions from tool calls, returns structured error messages
 - TimingMiddleware: logs tool call duration
@@ -17,7 +17,7 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools.base import ToolResult
 from mcp import types as mt
 
-logger = logging.getLogger("cth.mcp.framework")
+logger = logging.getLogger("archolith.mcp.framework")
 
 
 class TimeoutMiddleware(Middleware):

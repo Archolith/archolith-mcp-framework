@@ -1,4 +1,4 @@
-"""AuditLogMixin — JSON-line audit logging for cth.* MCP servers.
+"""AuditLogMixin — JSON-line audit logging for MCP servers.
 
 Extracted from artifact_gateway.py. Provides:
 - log_write(): appends a JSON line to the audit log
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuditLogMixin:
-    """Mixin for audit logging in cth.* MCP servers.
+    """Mixin for audit logging in MCP servers.
 
     Compose with BaseGatewayServer via multiple inheritance::
 

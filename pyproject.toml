@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cth-mcp-framework"
-version = "0.1.0"
-description = "Shared MCP server framework for cth.* workspace — FastMCP 3.x Search Transform + Middleware conventions."
+name = "archolith-mcp-framework"
+version = "0.2.0"
+description = "Shared FastMCP infrastructure for Archolith-compatible MCP servers."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.2.4,<4",

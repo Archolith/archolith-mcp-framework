@@ -21,7 +21,7 @@ Place the mixin BEFORE the base in the MRO so its ``_register_tools`` runs::
                 return self.started_message(jid)
 
 Registry scoping: this mixin delegates to the module-level
-:mod:`cth_mcp_framework.jobs` registry. Each MCP server runs as its own stdio
+:mod:`archolith_mcp_framework.jobs` registry. Each MCP server runs as its own stdio
 process, so that process-global registry is effectively per-server; an
 instance-scoped registry would buy isolation only inside a hypothetical
 multi-server process and is intentionally not used here.
@@ -29,7 +29,7 @@ multi-server process and is intentionally not used here.
 
 from __future__ import annotations
 
-from cth_mcp_framework import jobs
+from archolith_mcp_framework import jobs
 
 
 class JobControlMixin:
@@ -64,7 +64,7 @@ class JobControlMixin:
         ``eta_defaults[bucket]`` (then :attr:`eta_default_fallback`) and
         ``eta_tool`` defaults to ``f"{job_tool_prefix}{bucket}"``. All other
         keyword args (``streaming``, ``timeout_s``, ...) pass straight through to
-        :func:`cth_mcp_framework.jobs.start_job`.
+        :func:`archolith_mcp_framework.jobs.start_job`.
         """
         if eta_bucket is not None:
             if eta_default is None:

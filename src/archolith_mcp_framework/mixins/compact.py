@@ -1,4 +1,4 @@
-"""CompactMixin — shared compact-mode support for cth.* MCP gateway servers.
+"""CompactMixin — shared compact-mode support for MCP gateway servers.
 
 Provides:
 - resolve_compact(_compact): tri-state resolution (per-call > session > env > False)
@@ -18,7 +18,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from cth_mcp_framework.response import ToolResponse, ERR_INVALID_INPUT
+from archolith_mcp_framework.response import ToolResponse, ERR_INVALID_INPUT
 
 
 class CompactMixin:
@@ -35,7 +35,7 @@ class CompactMixin:
         return full_response
     """
 
-    # Server subclass sets this (e.g. "WORKSPACE_ARTIFACTS", "CTH_HARNESS", "YAWN_VPS").
+    # Server subclass sets this (e.g. "WORKSPACE_ARTIFACTS", "ARCHOLITH_HARNESS", "YAWN_VPS").
     # When empty, env var resolution is skipped.
     _compact_env_prefix: str = ""
 

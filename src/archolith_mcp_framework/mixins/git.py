@@ -1,4 +1,4 @@
-"""GitMixin — automatic git add+commit for cth.* MCP servers.
+"""GitMixin — automatic git add+commit for MCP servers.
 
 Provides:
 - git_auto_commit(): stages one or more files and commits only those paths
@@ -32,7 +32,7 @@ _COMMIT_ACTIONS: dict[str, str] = {
 
 
 class GitMixin:
-    """Mixin for automatic git commits on file mutations in cth.* MCP servers.
+    """Mixin for automatic git commits on file mutations in MCP servers.
 
     Compose with BaseGatewayServer via multiple inheritance::
 

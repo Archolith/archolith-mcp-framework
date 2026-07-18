@@ -9,7 +9,7 @@ It adds, on top of the original registry:
 
 - **ETA hints**: pass ``eta_tool``/``eta_bucket``/``eta_default`` to :func:`start_job`
   and the job records its real duration on success (see
-  :mod:`cth_mcp_framework.duration_stats`). :func:`job_eta` and :func:`job_status`
+  :mod:`archolith_mcp_framework.duration_stats`). :func:`job_eta` and :func:`job_status`
   surface a p50/p90 estimate so the client can wait once and check once instead of
   polling tightly.
 - **Heartbeat**: ``last_progress_ts`` distinguishes a genuinely stuck job (no output
@@ -28,7 +28,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from cth_mcp_framework.duration_stats import (
+from archolith_mcp_framework.duration_stats import (
     DurationEstimate,
     estimate_duration,
     record_duration,

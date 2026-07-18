@@ -1,4 +1,4 @@
-"""ToolResponse — standard response contract for cth.* MCP gateway servers.
+"""ToolResponse — standard response contract for MCP gateway servers.
 
 All tool returns should pass through ToolResponse so LLM clients always see
 the same shape: {success: bool, ...data, error?: str, code?: str}.
@@ -24,7 +24,7 @@ ERR_INTERNAL = "INTERNAL_ERROR"
 
 @dataclass
 class ToolResponse:
-    """Standard tool response for cth.* MCP servers.
+    """Standard tool response for MCP servers.
 
     Usage::
 

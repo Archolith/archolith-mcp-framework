@@ -1,4 +1,4 @@
-"""Shared runner for cth.* MCP servers.
+"""Shared runner for MCP servers.
 
 Provides a standard main() function that starts a FastMCP server
 on stdio transport, which is the workspace default.
@@ -14,7 +14,7 @@ def run_server(mcp: FastMCP) -> None:
 
     Usage in server entry points::
 
-        from cth_mcp_framework.runner import run_server
+        from archolith_mcp_framework.runner import run_server
         from my_server import mcp
 
         def main() -> None:

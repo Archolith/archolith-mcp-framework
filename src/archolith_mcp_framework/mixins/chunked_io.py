@@ -1,4 +1,4 @@
-"""ChunkedIOMixin — bounded UTF-8 chunk reading for cth.* MCP servers.
+"""ChunkedIOMixin — bounded UTF-8 chunk reading for MCP servers.
 
 Extracted from artifact_gateway.py. Provides:
 - read_chunk(): UTF-8 safe chunk read by byte offset
@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 class ChunkedIOMixin:
-    """Mixin for chunked I/O in cth.* MCP servers.
+    """Mixin for chunked I/O in MCP servers.
 
     Compose with BaseGatewayServer via multiple inheritance::
 

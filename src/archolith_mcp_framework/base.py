@@ -1,4 +1,4 @@
-"""BaseGatewayServer — abstract base class for cth.* MCP gateway servers.
+"""BaseGatewayServer — abstract base class for MCP gateway servers.
 
 Subclass this, set class attributes (name, instructions, always_visible),
 override _register_tools(), then call run() or pass self.mcp to run_server().
@@ -14,19 +14,19 @@ from typing import Any, Sequence
 from fastmcp import FastMCP
 from fastmcp.server.middleware import Middleware
 
-from cth_mcp_framework.runner import run_server
-from cth_mcp_framework.server import create_gateway_server
+from archolith_mcp_framework.runner import run_server
+from archolith_mcp_framework.server import create_gateway_server
 
 
 class BaseGatewayServer:
-    """Abstract base for cth.* MCP gateway servers.
+    """Abstract base for MCP gateway servers.
 
     Subclass this, call super().__init__(), register tools with
     @self.mcp.tool() or @self.tool(), then call run() or pass
     self.mcp to run_server().
 
     Attributes:
-        name: Server name (e.g. "cth.home", "yawn.vps").
+        name: Server name (e.g. "example.gateway", "yawn.vps").
         instructions: Human-readable description shown to LLM clients.
         always_visible: Tool names that stay visible alongside
             search_tools + call_tool.

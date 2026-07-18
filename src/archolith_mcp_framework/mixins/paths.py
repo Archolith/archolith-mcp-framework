@@ -1,4 +1,4 @@
-"""PathValidationMixin — safe path resolution for cth.* MCP servers.
+"""PathValidationMixin — safe path resolution for MCP servers.
 
 Extracted from artifact_gateway.py. Provides:
 - resolve_safe_path(): rejects traversal, absolute paths, separators
@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 class PathValidationMixin:
-    """Mixin for path validation in cth.* MCP servers.
+    """Mixin for path validation in MCP servers.
 
     Compose with BaseGatewayServer via multiple inheritance::
 
