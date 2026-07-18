@@ -15,6 +15,7 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 - keep the public response/error shape consistent across servers that adopt the framework
 - provide a shared async-job registry and a duration-stats ETA engine so long-running tools (deploy, build)
   can advise a single wait-then-check instead of tight, token-expensive polling
+- provide policy-free execution, registration, resilience, and request-correlation primitives for consumers
 
 ## Module Layout
 
@@ -28,7 +29,11 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 | `src/archolith_mcp_framework/runner.py` | Stdio server bootstrap helper |
 | `src/archolith_mcp_framework/duration_stats.py` | Records per `tool+bucket` job durations (rolling window, JSON-persisted) and returns p50/p90/samples estimates with cold-start defaults |
 | `src/archolith_mcp_framework/jobs.py` | Shared background-job registry (`start_job`/`job_status`/`job_eta`/`cancel_job`) with ETA hints, a `last_progress_ts` heartbeat (stuck vs slow), and an optional timeout-kill watchdog |
-| `src/archolith_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode, **job control** |
+| `src/archolith_mcp_framework/call_execution.py` | Async call timeout/error boundary plus a consumer-supplied telemetry recorder protocol |
+| `src/archolith_mcp_framework/contracts.py` | Policy-free JSON resource and MCP tool registration contracts |
+| `src/archolith_mcp_framework/resilience.py` | Failure classifier and async circuit breaker with optional transition hook |
+| src/archolith_mcp_framework/http.py | ASGI request-id context middleware and lookup helpers |
+| src/archolith_mcp_framework/mixins/ | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode, **job control** |
 | `src/archolith_mcp_framework/mixins/job_control.py` | `JobControlMixin` — opt-in polling support for OOP servers: auto-registers `<prefix>job_status`/`<prefix>job_cancel`, plus `start_job`/`started_message` helpers that apply per-server ETA defaults |
 
 ## Async Jobs + ETA
