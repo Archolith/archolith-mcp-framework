@@ -40,6 +40,16 @@ from archolith_mcp_framework.jobs import (
     job_eta,
     cancel_job,
 )
+from archolith_mcp_framework.call_execution import McpCallEvent, McpCallRecorder, json_preview, json_size, run_mcp_call
+from archolith_mcp_framework.contracts import JsonResource, McpTool, render_json
+from archolith_mcp_framework.http import RequestContextMiddleware, get_request_id, get_request_id_from_scope
+from archolith_mcp_framework.resilience import (
+    CircuitBreaker,
+    CircuitOpenError,
+    CircuitState,
+    CircuitTransition,
+    should_trip_circuit,
+)
 from archolith_mcp_framework.mixins import (
     PathValidationMixin,
     ChunkedIOMixin,
@@ -84,4 +94,21 @@ __all__ = [
     "GitMixin",
     "CompactMixin",
     "JobControlMixin",
+    # Execution, contracts, and resilience
+    "McpCallEvent",
+    "McpCallRecorder",
+    "json_preview",
+    "json_size",
+    "run_mcp_call",
+    "JsonResource",
+    "McpTool",
+    "render_json",
+    "RequestContextMiddleware",
+    "get_request_id",
+    "get_request_id_from_scope",
+    "CircuitBreaker",
+    "CircuitOpenError",
+    "CircuitState",
+    "CircuitTransition",
+    "should_trip_circuit",
 ]

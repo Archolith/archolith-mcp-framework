@@ -1,14 +1,14 @@
 # Archolith MCP Framework
 
 `archolith-mcp-framework` is shared FastMCP infrastructure for MCP servers. It provides a server factory,
-tool-discovery transform, common middleware, response helpers, reusable mixins, and asynchronous job support.
+tool-discovery transform, common middleware, response helpers, reusable mixins, and asynchronous job support. It also provides policy-free MCP call execution, resource/tool registration, circuit breaking, and request correlation.
 
 ## Install
 
 ```toml
 [project]
 dependencies = [
-    "archolith-mcp-framework @ git+https://github.com/Archolith/archolith-mcp-framework.git@v0.2.0",
+    "archolith-mcp-framework @ git+https://github.com/Archolith/archolith-mcp-framework.git@v0.3.0",
 ]
 ```
 
