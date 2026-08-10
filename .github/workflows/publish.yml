@@ -1,0 +1,145 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish
+        required: true
+        default: v0.2.0
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: verify release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Require tag to match package version
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
+          expected = f"v{project['version']}"
+          actual = os.environ["RELEASE_TAG"]
+          if actual != expected:
+              raise SystemExit(f"tag/version mismatch: tag={actual!r}, expected={expected!r}")
+          PY
+
+      - name: Install release audit environment
+        run: |
+          python -m pip install --upgrade pip build twine check-wheel-contents
+          python -m pip install -e ".[dev]"
+
+      - name: Test, build, and inspect distributions
+        run: |
+          python -m pytest -p no:cacheprovider -q
+          python -m build
+          python -m twine check dist/*
+          check-wheel-contents --ignore W009 dist/*.whl
+
+      - name: Smoke installed wheel and compatibility import
+        run: |
+          python -m venv .smoke
+          .smoke/bin/python -m pip install dist/*.whl
+          .smoke/bin/python - <<'PY'
+          import importlib.metadata
+          import archolith_mcp_framework
+          import cth_mcp_framework
+
+          assert importlib.metadata.version("archolith-mcp-framework") == "0.2.0"
+          assert hasattr(archolith_mcp_framework, "run_server")
+          assert hasattr(cth_mcp_framework, "run_server")
+          PY
+          .smoke/bin/python -m pip check
+
+      - name: Record distribution checksums
+        run: sha256sum dist/* > SHA256SUMS
+
+      - name: Upload verified distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload distribution checksums
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-checksums
+          path: SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: trusted publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/archolith-mcp-framework/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download verified distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-dist
+          path: dist
+
+      - name: Publish with PyPI trusted publishing
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist/
+          attestations: true
+
+  github-release:
+    name: create GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download published distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-dist
+          path: dist
+
+      - name: Download distribution checksums
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-checksums
+          path: checksums
+
+      - name: Create immutable release record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/* checksums/SHA256SUMS \
+            --verify-tag --generate-notes
