@@ -142,4 +142,4 @@ jobs:
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
           gh release create "$RELEASE_TAG" dist/* checksums/SHA256SUMS \
-            --verify-tag --generate-notes
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
