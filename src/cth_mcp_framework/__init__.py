@@ -11,9 +11,11 @@ from archolith_mcp_framework import __all__
 _SUBMODULES = (
     "base",
     "duration_stats",
+    "http",
     "jobs",
     "middleware",
     "pagination",
+    "resilience",
     "response",
     "runner",
     "server",

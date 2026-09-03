@@ -48,6 +48,18 @@ from archolith_mcp_framework.mixins import (
     CompactMixin,
     JobControlMixin,
 )
+from archolith_mcp_framework.http import (
+    RequestContextMiddleware,
+    get_request_id,
+    get_request_id_from_scope,
+)
+from archolith_mcp_framework.resilience import (
+    CircuitBreaker,
+    CircuitOpenError,
+    CircuitState,
+    CircuitTransition,
+    should_trip_circuit,
+)
 from archolith_mcp_framework.pagination import (
     DEFAULT_PAGE_LIMIT,
     MAX_PAGE_LIMIT,
@@ -99,4 +111,14 @@ __all__ = [
     "PaginationMixin",
     "page_slice",
     "paginate",
+    # Request correlation
+    "RequestContextMiddleware",
+    "get_request_id",
+    "get_request_id_from_scope",
+    # Resilience
+    "CircuitBreaker",
+    "CircuitOpenError",
+    "CircuitState",
+    "CircuitTransition",
+    "should_trip_circuit",
 ]

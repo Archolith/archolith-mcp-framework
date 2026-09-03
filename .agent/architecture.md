@@ -15,6 +15,8 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 - keep the public response/error shape consistent across servers that adopt the framework
 - provide a shared async-job registry and a duration-stats ETA engine so long-running tools (deploy, build)
   can advise a single wait-then-check instead of tight, token-expensive polling
+- provide opt-in resilience and request-correlation primitives for servers that call external
+  services or are exposed over HTTP
 
 ## Module Layout
 
@@ -28,6 +30,8 @@ mixins that other MCP repos can reuse instead of re-implementing the same plumbi
 | `src/archolith_mcp_framework/runner.py` | Stdio server bootstrap helper |
 | `src/archolith_mcp_framework/duration_stats.py` | Records per `tool+bucket` job durations (rolling window, JSON-persisted) and returns p50/p90/samples estimates with cold-start defaults |
 | `src/archolith_mcp_framework/jobs.py` | Shared background-job registry (`start_job`/`job_status`/`job_eta`/`cancel_job`) with ETA hints, a `last_progress_ts` heartbeat (stuck vs slow), and an optional timeout-kill watchdog |
+| `src/archolith_mcp_framework/resilience.py` | `should_trip_circuit()` upstream-failure classifier and an async CLOSED/OPEN/HALF_OPEN `CircuitBreaker` with single-probe recovery and an optional transition hook |
+| `src/archolith_mcp_framework/http.py` | `RequestContextMiddleware` -- binds an `x-request-id` per ASGI request (reused or minted), exposes it via `get_request_id()`, and echoes it on the response |
 | `src/archolith_mcp_framework/mixins/` | Reusable behavior slices: paths, chunked I/O, git, audit, compact mode, **job control** |
 | `src/archolith_mcp_framework/mixins/job_control.py` | `JobControlMixin` — opt-in polling support for OOP servers: auto-registers `<prefix>job_status`/`<prefix>job_cancel`, plus `start_job`/`started_message` helpers that apply per-server ETA defaults |
 
@@ -91,3 +95,5 @@ using `create_gateway_server` directly; the mixin is the path for new OOP server
 | `tests/test_compact_mixin.py` | Compact-mode behavior and mixin-level edge cases |
 | `tests/test_duration_stats.py` | Percentile math, cold-start defaults, rolling window, JSON persistence, corrupt-file handling |
 | `tests/test_jobs.py` | Job lifecycle, ETA recording (success-only), heartbeat/ETA in status, timeout watchdog, legacy-dict compatibility |
+| `tests/test_resilience.py` | Failure classification (transport, 429/5xx, 4xx exclusion, duck-typed and name-matched SDK errors), threshold tripping, cooldown, single-probe half-open recovery, probe failure re-opening, hook isolation |
+| `tests/test_http.py` | Request-id reuse and minting, blank-header handling, response echo and dedup, non-HTTP passthrough, context reset on error, scope-state lookup |
