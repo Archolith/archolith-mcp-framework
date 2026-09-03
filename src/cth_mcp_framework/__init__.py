@@ -13,6 +13,7 @@ _SUBMODULES = (
     "duration_stats",
     "jobs",
     "middleware",
+    "pagination",
     "response",
     "runner",
     "server",

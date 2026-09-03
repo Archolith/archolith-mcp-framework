@@ -48,6 +48,14 @@ from archolith_mcp_framework.mixins import (
     CompactMixin,
     JobControlMixin,
 )
+from archolith_mcp_framework.pagination import (
+    DEFAULT_PAGE_LIMIT,
+    MAX_PAGE_LIMIT,
+    PageWindow,
+    PaginationMixin,
+    page_slice,
+    paginate,
+)
 
 __all__ = [
     # Factory + runner
@@ -84,4 +92,11 @@ __all__ = [
     "GitMixin",
     "CompactMixin",
     "JobControlMixin",
+    # Pagination
+    "DEFAULT_PAGE_LIMIT",
+    "MAX_PAGE_LIMIT",
+    "PageWindow",
+    "PaginationMixin",
+    "page_slice",
+    "paginate",
 ]
