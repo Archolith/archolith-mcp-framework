@@ -68,19 +68,29 @@ _FIRST_SENTENCE_RE = re.compile(r"^(.*?(?:[.!?](?:\s|$)))", re.DOTALL)
 def _abbreviate_tool(tool: Tool) -> Tool:
     """Return a copy of *tool* with collapsed schema for list_tools display.
 
-    Keeps: name, first sentence of description, required param names only.
-    Drops: parameter types, defaults, nested schema, full description.
+    Keeps: name, first sentence of description, required params (with their
+    original property schema, so the result stays valid JSON Schema).
+    Drops: optional parameters entirely, defaults, full description.
+
+    A `required` entry with no matching `properties` key is legal JSON Schema
+    but self-inconsistent (nothing constrains the value or even documents its
+    type) - earlier versions of this function did exactly that, which some
+    MCP clients handle poorly for the *output* side of the same tool once its
+    input schema has been served this way. Keeping required properties'
+    schema intact avoids emitting that shape at all.
     """
     mcp_tool = tool.to_mcp_tool()
     schema = mcp_tool.inputSchema or {}
     properties: dict[str, Any] = schema.get("properties", {})
     required_names: list[str] = schema.get("required", [])
 
-    abbreviated_params: dict[str, Any] = {"type": "object", "properties": {}}
-    if required_names:
-        abbreviated_params["required"] = [
-            n for n in required_names if n in properties
-        ]
+    kept_required = [n for n in required_names if n in properties]
+    abbreviated_params: dict[str, Any] = {
+        "type": "object",
+        "properties": {n: properties[n] for n in kept_required},
+    }
+    if kept_required:
+        abbreviated_params["required"] = kept_required
 
     desc = tool.description or ""
     first_sentence = _FIRST_SENTENCE_RE.match(desc)

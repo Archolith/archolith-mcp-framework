@@ -197,8 +197,46 @@ class TestCreateGatewayServer:
         tools_abbrev = await mcp.list_tools()
         pinned_abbrev = [t for t in tools_abbrev if t.name == "set_light"][0]
         abbrev_schema = pinned_abbrev.to_mcp_tool().inputSchema
-        assert abbrev_schema.get("properties", {}) == {}
+        # Required params keep their schema - a `required` entry with no
+        # matching `properties` key is self-inconsistent JSON Schema, and some
+        # MCP clients handle that poorly for the tool's output side too.
+        assert set(abbrev_schema.get("required", [])) == {"light_id", "on"}
+        assert set(abbrev_schema.get("properties", {})) == {"light_id", "on"}
         assert len(pinned_abbrev.description) < len(pinned_warmup.description)
+
+        # outputSchema (derived from the return type, untouched by
+        # abbreviation) must still be intact after abbreviation.
+        assert pinned_abbrev.to_mcp_tool().outputSchema == pinned_warmup.to_mcp_tool().outputSchema
+
+    @pytest.mark.asyncio
+    async def test_abbreviate_visible_drops_optional_params_only(self):
+        """Required params keep a valid schema entry; optional params are dropped entirely."""
+        mcp = create_gateway_server(
+            "test-server",
+            instructions="Test.",
+            always_visible=["search_cards"],
+            schema_abbreviated=True,
+        )
+
+        @mcp.tool()
+        async def search_cards(query: str, limit: int = 20) -> str:
+            """Search for cards. query is required, limit is optional."""
+            return f"Searched {query}"
+
+        transform = mcp._transforms[0]
+        transform._call_count = 0
+        await mcp.list_tools()  # warmup
+
+        tools_abbrev = await mcp.list_tools()
+        pinned = [t for t in tools_abbrev if t.name == "search_cards"][0]
+        schema = pinned.to_mcp_tool().inputSchema
+
+        assert schema.get("required") == ["query"]
+        assert set(schema.get("properties", {})) == {"query"}
+        assert "limit" not in schema.get("properties", {})
+        # No `required` entry without a matching `properties` schema.
+        for name in schema.get("required", []):
+            assert name in schema.get("properties", {})
 
 
 # ---------------------------------------------------------------------------
