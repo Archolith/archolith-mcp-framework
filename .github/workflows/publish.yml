@@ -9,7 +9,7 @@ on:
       tag:
         description: Existing release tag to publish
         required: true
-        default: v0.2.0
+        default: v0.3.0
         type: string
 
 permissions:
@@ -61,17 +61,27 @@ jobs:
           check-wheel-contents --ignore W009 dist/*.whl
 
       - name: Smoke installed wheel and compatibility import
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         run: |
           python -m venv .smoke
           .smoke/bin/python -m pip install dist/*.whl
           .smoke/bin/python - <<'PY'
           import importlib.metadata
+          import os
           import archolith_mcp_framework
           import cth_mcp_framework
 
-          assert importlib.metadata.version("archolith-mcp-framework") == "0.2.0"
-          assert hasattr(archolith_mcp_framework, "run_server")
-          assert hasattr(cth_mcp_framework, "run_server")
+          expected = os.environ["RELEASE_TAG"].lstrip("v")
+          installed = importlib.metadata.version("archolith-mcp-framework")
+          if installed != expected:
+              raise SystemExit(f"wheel/tag mismatch: installed={installed!r}, expected={expected!r}")
+
+          # Guard the symbols consumers import, so a release can never ship a wheel
+          # that satisfies their pin but lacks what they call.
+          for symbol in ("run_server", "paginate", "CircuitBreaker", "RequestContextMiddleware"):
+              assert hasattr(archolith_mcp_framework, symbol), symbol
+              assert hasattr(cth_mcp_framework, symbol), symbol
           PY
           .smoke/bin/python -m pip check
 

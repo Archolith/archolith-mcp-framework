@@ -1,11 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Added an audited, manually dispatchable trusted-publishing workflow for the existing `v0.2.0`
-  tag, including tests, artifact inspection, clean-wheel import smoke tests, checksums, PyPI upload,
-  and an immutable GitHub release record.
-
 ## 0.3.0 - 2026-09-03
 
 - Added `resilience.py`: `should_trip_circuit()` classifies upstream-health failures (timeouts,
@@ -21,6 +15,12 @@
   untouched and the context var is reset even when the application raises.
 - Declared `httpx>=0.28.1,<1` explicitly; `resilience.py` imports it directly rather than relying on
   it arriving transitively through fastmcp.
+- Added an audited, manually dispatchable trusted-publishing workflow, including tests, artifact
+  inspection, clean-wheel import smoke tests, checksums, PyPI upload, and an immutable GitHub
+  release record.
+- Made the release smoke test derive the expected version from the tag instead of hardcoding it,
+  and assert that the built wheel exports the symbols consumers import (`run_server`, `paginate`,
+  `CircuitBreaker`, `RequestContextMiddleware`) through both the primary and compatibility packages.
 
 Both modules are opt-in: `create_gateway_server()` does not wire them, so existing servers are
 unchanged until they adopt them.
