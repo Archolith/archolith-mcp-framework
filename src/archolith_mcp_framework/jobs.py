@@ -68,10 +68,48 @@ _STALL_THRESHOLD_S = 600
 
 JOBS_LOG_DIR = _default_stats_path().parent / "mcp-jobs"
 
+# Cap on job file *pairs* retained on disk. Independent from _MAX_JOBS: these
+# files persist across process restarts, whereas a fresh process starts with
+# an empty in-memory _jobs dict, so _evict_old() never sees (and can never
+# prune) files left behind by a prior run. This is the only mechanism that
+# actually bounds logs/mcp-jobs/ over time.
+_MAX_JOB_FILES = 100
+
 
 def _job_paths(job_id: str) -> tuple[Path, Path]:
     """Return (log_path, status_path) for a job_id under JOBS_LOG_DIR."""
     return JOBS_LOG_DIR / f"{job_id}.log", JOBS_LOG_DIR / f"{job_id}.status"
+
+
+def _prune_job_files() -> None:
+    """Delete the oldest job file pairs once the on-disk count exceeds _MAX_JOB_FILES.
+
+    Best-effort and non-fatal, like every other write in this module. Keyed by
+    job_id (the shared filename stem) rather than just .status files, so an
+    orphaned .log with no matching .status -- e.g. left behind by a process
+    that crashed mid-job -- still gets cleaned up eventually instead of
+    lingering forever.
+    """
+    try:
+        mtimes: dict[str, float] = {}
+        for p in JOBS_LOG_DIR.glob("*"):
+            if p.suffix not in (".log", ".status"):
+                continue
+            mtimes[p.stem] = max(mtimes.get(p.stem, 0.0), p.stat().st_mtime)
+    except OSError:
+        return
+
+    excess = len(mtimes) - _MAX_JOB_FILES
+    if excess <= 0:
+        return
+
+    oldest_ids = [jid for jid, _ in sorted(mtimes.items(), key=lambda kv: kv[1])[:excess]]
+    for jid in oldest_ids:
+        for suffix in (".log", ".status"):
+            try:
+                (JOBS_LOG_DIR / f"{jid}{suffix}").unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _write_status_file(status_path: Path, status: str) -> None:
@@ -124,6 +162,10 @@ def start_job(
         log_path.write_text(f"# job {job_id}: {label}\n", encoding="utf-8")
     except OSError:
         pass
+    # Cheap (one directory listing) and only runs once per job start, which
+    # isn't a hot path -- also naturally sweeps orphans left by a prior
+    # process's crash, since this runs on the very first job of a fresh run.
+    _prune_job_files()
 
     with _lock:
         _jobs[job_id] = {

@@ -349,3 +349,90 @@ class TestMonitorFiles:
         assert _wait_terminal(jid) == "done"
         out = jobs.job_status(jid)
         assert "still works" in out
+
+
+# ---------------------------------------------------------------------------
+# Disk pruning — files persist across process restarts (unlike the in-memory
+# _jobs dict, which starts empty each run), so _evict_old()'s cap never
+# touches them. _prune_job_files() is the only thing bounding disk usage.
+# ---------------------------------------------------------------------------
+
+class TestPruneJobFiles:
+    def test_prune_deletes_oldest_pairs_beyond_cap(self, _job_dir, monkeypatch):
+        monkeypatch.setattr(jobs, "_MAX_JOB_FILES", 3)
+        _job_dir.mkdir(parents=True, exist_ok=True)
+        # 5 fake job pairs, mtimes 40..0 seconds ago so id0 is oldest.
+        ids = [f"id{i}" for i in range(5)]
+        now = time.time()
+        for i, jid in enumerate(ids):
+            log_p = _job_dir / f"{jid}.log"
+            status_p = _job_dir / f"{jid}.status"
+            log_p.write_text("x", encoding="utf-8")
+            status_p.write_text("done", encoding="utf-8")
+            age = (len(ids) - i) * 10
+            mtime = now - age
+            import os
+            os.utime(log_p, (mtime, mtime))
+            os.utime(status_p, (mtime, mtime))
+
+        jobs._prune_job_files()
+
+        remaining = {p.stem for p in _job_dir.glob("*")}
+        # Newest 3 (id2, id3, id4) survive; oldest 2 (id0, id1) are gone.
+        assert remaining == {"id2", "id3", "id4"}
+
+    def test_prune_removes_both_files_of_a_pair(self, _job_dir, monkeypatch):
+        monkeypatch.setattr(jobs, "_MAX_JOB_FILES", 0)
+        _job_dir.mkdir(parents=True, exist_ok=True)
+        (_job_dir / "solo.log").write_text("x", encoding="utf-8")
+        (_job_dir / "solo.status").write_text("done", encoding="utf-8")
+
+        jobs._prune_job_files()
+
+        assert not (_job_dir / "solo.log").exists()
+        assert not (_job_dir / "solo.status").exists()
+
+    def test_prune_cleans_orphaned_log_without_status(self, _job_dir, monkeypatch):
+        # A process that crashed mid-job leaves a .log with no matching
+        # .status -- still gets swept once it's old enough to be evicted.
+        monkeypatch.setattr(jobs, "_MAX_JOB_FILES", 0)
+        _job_dir.mkdir(parents=True, exist_ok=True)
+        (_job_dir / "orphan.log").write_text("partial output", encoding="utf-8")
+
+        jobs._prune_job_files()
+
+        assert not (_job_dir / "orphan.log").exists()
+
+    def test_prune_noop_under_cap(self, _job_dir, monkeypatch):
+        monkeypatch.setattr(jobs, "_MAX_JOB_FILES", 100)
+        _job_dir.mkdir(parents=True, exist_ok=True)
+        (_job_dir / "keep.log").write_text("x", encoding="utf-8")
+        (_job_dir / "keep.status").write_text("done", encoding="utf-8")
+
+        jobs._prune_job_files()
+
+        assert (_job_dir / "keep.log").exists()
+        assert (_job_dir / "keep.status").exists()
+
+    def test_prune_never_raises_when_dir_missing(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(jobs, "JOBS_LOG_DIR", tmp_path / "does-not-exist")
+        jobs._prune_job_files()  # must not raise
+
+    def test_start_job_triggers_pruning(self, _job_dir, monkeypatch):
+        monkeypatch.setattr(jobs, "_MAX_JOB_FILES", 1)
+        _job_dir.mkdir(parents=True, exist_ok=True)
+        old_log = _job_dir / "ancient.log"
+        old_status = _job_dir / "ancient.status"
+        old_log.write_text("x", encoding="utf-8")
+        old_status.write_text("done", encoding="utf-8")
+        import os
+        old_time = time.time() - 3600
+        os.utime(old_log, (old_time, old_time))
+        os.utime(old_status, (old_time, old_time))
+
+        jid = jobs.start_job("noop", lambda: "ok")
+        _wait_terminal(jid)
+
+        assert not old_log.exists()
+        assert not old_status.exists()
+        assert (_job_dir / f"{jid}.log").exists()
