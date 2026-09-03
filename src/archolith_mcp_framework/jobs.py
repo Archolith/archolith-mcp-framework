@@ -27,9 +27,11 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from archolith_mcp_framework.duration_stats import (
     DurationEstimate,
+    _default_stats_path,
     estimate_duration,
     record_duration,
 )
@@ -47,6 +49,44 @@ _MAX_LIVE_LINES = 500
 # Stall threshold: if a running job has produced 0 output lines for this many
 # seconds, the stall flag is set in job_status output.
 _STALL_THRESHOLD_S = 600
+
+# ---------------------------------------------------------------------------
+# Monitorable job files
+# ---------------------------------------------------------------------------
+#
+# Job state otherwise lives only in this process's memory (the _jobs dict),
+# which is invisible to anything outside the MCP server -- in particular the
+# Monitor tool, which runs a plain bash subprocess with no way to reach into
+# Python memory. Mirroring each job's output and terminal status to disk
+# under WORKSPACE_ROOT/logs/mcp-jobs/ lets a caller set up
+#   until grep -qE 'DONE|FAIL' logs/mcp-jobs/<id>.status; do sleep 5; done
+# or tail -f the .log file for live progress, entirely outside the MCP
+# protocol. Same directory convention as duration_stats.py's stats file.
+#
+# All writes here are best-effort: a filesystem hiccup must never break the
+# job itself, mirroring the existing philosophy in _maybe_record().
+
+JOBS_LOG_DIR = _default_stats_path().parent / "mcp-jobs"
+
+
+def _job_paths(job_id: str) -> tuple[Path, Path]:
+    """Return (log_path, status_path) for a job_id under JOBS_LOG_DIR."""
+    return JOBS_LOG_DIR / f"{job_id}.log", JOBS_LOG_DIR / f"{job_id}.status"
+
+
+def _write_status_file(status_path: Path, status: str) -> None:
+    try:
+        status_path.write_text(status + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _append_log_line(log_path: Path, line: str) -> None:
+    try:
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        pass
 
 
 def start_job(
@@ -78,6 +118,13 @@ def start_job(
     Returns a short job_id (8 hex chars) that can be passed to job_status().
     """
     job_id = uuid.uuid4().hex[:8]
+    log_path, status_path = _job_paths(job_id)
+    try:
+        JOBS_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(f"# job {job_id}: {label}\n", encoding="utf-8")
+    except OSError:
+        pass
+
     with _lock:
         _jobs[job_id] = {
             "label": label,
@@ -94,6 +141,8 @@ def start_job(
             "eta_default": eta_default,
             "timeout_s": timeout_s,
             "timed_out": False,
+            "log_path": str(log_path),
+            "status_path": str(status_path),
         }
         _evict_old()
 
@@ -106,6 +155,7 @@ def start_job(
                 j["last_progress_ts"] = time.monotonic()
                 if len(j["live_lines"]) > _MAX_LIVE_LINES:
                     j["live_lines"] = j["live_lines"][-_MAX_LIVE_LINES:]
+        _append_log_line(log_path, line)
 
     def _set_proc(proc) -> None:
         with _lock:
@@ -124,6 +174,8 @@ def start_job(
         except Exception as exc:  # noqa: BLE001
             err = str(exc)
         finally:
+            final_status: str | None = None
+            final_output = None
             with _lock:
                 j = _jobs.get(job_id)
                 if j is not None:
@@ -137,7 +189,16 @@ def start_job(
                         j["status"] = "done"
                         j["output"] = result
                     j["completed_at"] = _now()
+                    final_status = j["status"]
+                    final_output = j["output"]
                     _maybe_record(j)
+            # Non-streaming jobs never called _append_line, so the log file
+            # only has the header -- write the final output there too, so
+            # `tail -f` on a non-streaming job's log still shows something.
+            if final_status is not None and not streaming:
+                _append_log_line(log_path, final_output or "")
+            if final_status is not None:
+                _write_status_file(status_path, final_status)
 
     threading.Thread(target=_worker, daemon=True, name=f"job-{job_id}").start()
 
@@ -203,6 +264,23 @@ def job_eta(job_id: str) -> DurationEstimate | None:
     return estimate_duration(tool, bucket, default=default)
 
 
+def job_monitor_hint(job_id: str) -> str:
+    """Return a newline-prefixed line pointing at the job's monitor files, or '' if unavailable.
+
+    Meant to be appended to a tool's "job started" return message alongside
+    _eta_suffix-style guidance, so a caller (or the Monitor tool) can watch
+    the job from outside the MCP protocol -- e.g.:
+        until grep -qE 'done|error|timeout' <status_path>; do sleep 5; done
+    or tail -f <log_path> for live progress.
+    """
+    with _lock:
+        j = _jobs.get(job_id)
+        status_path = j.get("status_path") if j else None
+    if not status_path:
+        return ""
+    return f"\nMonitor with: until grep -q . {status_path} 2>/dev/null; do sleep 5; done"
+
+
 def job_status(
     job_id: str | None = None,
     since_line: int = 0,
@@ -252,6 +330,15 @@ def job_status(
             if j["completed_at"]:
                 lines.append(f"Completed: {j['completed_at']}")
             lines.append(f"Lines: {next_line} total (next poll: since_line={next_line})")
+            # Absent on hand-built job dicts from before this field existed
+            # (see TestLegacyDictCompat) -- guard with .get().
+            if j.get("log_path"):
+                lines.append(f"Log file (tail -f for live output): {j['log_path']}")
+            if j.get("status_path"):
+                lines.append(
+                    f"Status file (for Monitor -- terminal value is done|error|timeout|cancelled): "
+                    f"{j['status_path']}"
+                )
 
             # ETA + heartbeat — only for ETA-tracked jobs that are still running.
             if running and j.get("eta_tool") and j.get("eta_bucket"):
@@ -320,11 +407,17 @@ def cancel_job(job_id: str) -> str:
         proc.wait(timeout=5)
     except Exception as exc:  # noqa: BLE001
         return f"Kill failed: {exc}"
+    status_path_str = None
     with _lock:
         j = _jobs.get(job_id)
         if j:
             j["status"] = "cancelled"
             j["completed_at"] = _now()
+            status_path_str = j.get("status_path")
+    # A Monitor waiting on the status file for a terminal value must not hang
+    # forever just because the job was cancelled instead of finishing normally.
+    if status_path_str:
+        _write_status_file(Path(status_path_str), "cancelled")
     return f"Job {job_id} killed."
 
 

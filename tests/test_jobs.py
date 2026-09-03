@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import pytest
 
@@ -203,3 +204,148 @@ class TestTimeout:
         time.sleep(0.05)
         # Timed-out runs must not be recorded even without eta params anyway.
         assert recorded == []
+
+
+# ---------------------------------------------------------------------------
+# Monitorable job files — log + status mirrored to disk for external tools
+# (e.g. the Monitor tool, which runs a bash subprocess with no way to reach
+# into this process's in-memory _jobs dict) to watch outside the MCP protocol.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture()
+def _job_dir(tmp_path, monkeypatch):
+    d = tmp_path / "mcp-jobs"
+    monkeypatch.setattr(jobs, "JOBS_LOG_DIR", d)
+    return d
+
+
+class TestMonitorFiles:
+    def test_status_file_written_on_success(self, _job_dir):
+        jid = jobs.start_job("noop", lambda: "result-text")
+        _wait_terminal(jid)
+        time.sleep(0.05)
+        status_path = _job_dir / f"{jid}.status"
+        assert status_path.read_text(encoding="utf-8").strip() == "done"
+
+    def test_status_file_written_on_error(self, _job_dir):
+        def boom():
+            raise RuntimeError("kaboom")
+
+        jid = jobs.start_job("boom", boom)
+        _wait_terminal(jid)
+        time.sleep(0.05)
+        status_path = _job_dir / f"{jid}.status"
+        assert status_path.read_text(encoding="utf-8").strip() == "error"
+
+    def test_status_file_written_on_timeout(self):
+        # timeout watchdog writes the status file from its own thread after
+        # the worker's finally block runs -- exercise the real dir here since
+        # start_job resolves JOBS_LOG_DIR once at call time via the module
+        # global, same as the other tests.
+        class _FakeProc:
+            def __init__(self):
+                self.killed = False
+
+            def kill(self):
+                self.killed = True
+
+            def wait(self, timeout=None):
+                pass
+
+        proc = _FakeProc()
+
+        def streaming_fn(line_callback, proc_callback):
+            proc_callback(proc)
+            for _ in range(50):
+                time.sleep(0.05)
+                if proc.killed:
+                    break
+            return "partial"
+
+        jid = jobs.start_job("slow", streaming_fn, streaming=True, timeout_s=1)
+        _wait_terminal(jid, timeout=5)
+        time.sleep(0.05)
+        with jobs._lock:
+            status_path = Path(jobs._jobs[jid]["status_path"])
+        assert status_path.read_text(encoding="utf-8").strip() == "timeout"
+
+    def test_status_file_written_on_cancel(self, _job_dir):
+        class _FakeProc:
+            def kill(self):
+                pass
+
+            def wait(self, timeout=None):
+                pass
+
+        def streaming_fn(line_callback, proc_callback):
+            proc_callback(_FakeProc())
+            time.sleep(5)
+            return "never"
+
+        jid = jobs.start_job("cancelable", streaming_fn, streaming=True)
+        time.sleep(0.05)  # let proc_callback register
+        jobs.cancel_job(jid)
+        status_path = _job_dir / f"{jid}.status"
+        assert status_path.read_text(encoding="utf-8").strip() == "cancelled"
+
+    def test_log_file_contains_streamed_lines(self, _job_dir):
+        def streaming_fn(line_callback, proc_callback):
+            line_callback("line one")
+            line_callback("line two")
+            return "done"
+
+        jid = jobs.start_job("stream", streaming_fn, streaming=True)
+        _wait_terminal(jid)
+        time.sleep(0.05)
+        log_path = _job_dir / f"{jid}.log"
+        content = log_path.read_text(encoding="utf-8")
+        assert "line one" in content
+        assert "line two" in content
+
+    def test_log_file_contains_final_output_for_nonstreaming_job(self, _job_dir):
+        jid = jobs.start_job("noop", lambda: "the final output")
+        _wait_terminal(jid)
+        time.sleep(0.05)
+        log_path = _job_dir / f"{jid}.log"
+        assert "the final output" in log_path.read_text(encoding="utf-8")
+
+    def test_job_status_surfaces_paths(self, _job_dir):
+        jid = jobs.start_job("noop", lambda: "ok")
+        _wait_terminal(jid)
+        out = jobs.job_status(jid)
+        assert "Log file" in out
+        assert "Status file" in out
+        assert str(_job_dir) in out
+
+    def test_job_status_omits_paths_for_legacy_dict(self):
+        # Hand-built dicts (pre-dating this feature) lack log_path/status_path.
+        jobs._jobs["p-legacy"] = {
+            "label": "pull", "status": "done", "output": "o0",
+            "live_lines": None, "lines_emitted": 0,
+            "started_at": "t0", "completed_at": "t1",
+        }
+        out = jobs.job_status("p-legacy")
+        assert "Log file" not in out
+        assert "Status file" not in out
+
+    def test_job_monitor_hint_present_for_real_job(self, _job_dir):
+        jid = jobs.start_job("noop", lambda: "ok")
+        hint = jobs.job_monitor_hint(jid)
+        assert hint.startswith("\nMonitor with:")
+        assert "grep" in hint
+
+    def test_job_monitor_hint_empty_for_unknown_job(self):
+        assert jobs.job_monitor_hint("does-not-exist") == ""
+
+    def test_job_creation_never_raises_when_dir_uncreatable(self, tmp_path, monkeypatch):
+        # A file where a directory is expected makes mkdir(parents=True) raise
+        # OSError (NotADirectoryError on POSIX, FileExistsError-ish on some
+        # platforms) -- start_job must swallow it and the job must still run.
+        blocker = tmp_path / "blocked"
+        blocker.write_text("not a directory", encoding="utf-8")
+        monkeypatch.setattr(jobs, "JOBS_LOG_DIR", blocker / "mcp-jobs")
+
+        jid = jobs.start_job("noop", lambda: "still works")
+        assert _wait_terminal(jid) == "done"
+        out = jobs.job_status(jid)
+        assert "still works" in out
