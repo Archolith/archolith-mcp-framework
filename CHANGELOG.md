@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Packaging metadata: declare the MIT license (`License-Expression` and `License-File`), the README as
+  the long description, and Repository and Changelog URLs. Requires setuptools 77 to build.
+
 ## 0.3.0 - 2026-09-03
 
 - Added `resilience.py`: `should_trip_circuit()` classifies upstream-health failures (timeouts,
